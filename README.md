@@ -20,6 +20,7 @@ This script is a Python-based network packet sniffer with a graphical user inter
 3. **Install the Required Dependencies**:
    ```sh
    pip install scapy PyQt5
+   Need To install Npcap for windows from here: https://npcap.com/dist/npcap-1.79.exe
    ```
 4. **Run the Packet Sniffer Script**:
    ```sh
