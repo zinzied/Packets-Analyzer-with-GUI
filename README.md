@@ -24,7 +24,7 @@ This script is a Python-based network packet sniffer with a graphical user inter
    ```
 4. **Run the Packet Sniffer Script**:
    ```sh
-   sudo Packets Analyser.py
+   sudo python Packets Analyser.py
    ```
 
 ### GUI Components:
