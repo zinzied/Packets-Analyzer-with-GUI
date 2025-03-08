@@ -68,7 +68,6 @@ class PacketSnifferApp(QtWidgets.QWidget):
                 display: inline-block;
                 font-size: 14px;
                 margin: 4px 2px;
-                cursor: pointer;
                 border-radius: 12px;
             }
             QPushButton:hover {
@@ -97,27 +96,33 @@ class PacketSnifferApp(QtWidgets.QWidget):
 
         self.start_button = QtWidgets.QPushButton('Start Sniffing', self)
         self.start_button.setIcon(QtGui.QIcon('icons/start.png'))
+        self.start_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.start_button.clicked.connect(self.start_sniffing)
 
         self.stop_button = QtWidgets.QPushButton('Stop Sniffing', self)
         self.stop_button.setIcon(QtGui.QIcon('icons/stop.png'))
+        self.stop_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.stop_button.clicked.connect(self.stop_sniffing)
         self.stop_button.setEnabled(False)
 
         self.clear_button = QtWidgets.QPushButton('Clear Packets', self)
         self.clear_button.setIcon(QtGui.QIcon('icons/clear.png'))
+        self.clear_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.clear_button.clicked.connect(self.clear_packets)
 
         self.scan_button = QtWidgets.QPushButton('Scan IPs', self)
         self.scan_button.setIcon(QtGui.QIcon('icons/scan.png'))
+        self.scan_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.scan_button.clicked.connect(self.scan_ips)
 
         self.save_button = QtWidgets.QPushButton('Save Packets', self)
         self.save_button.setIcon(QtGui.QIcon('icons/save.png'))
+        self.save_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.save_button.clicked.connect(self.save_packets)
 
         self.load_button = QtWidgets.QPushButton('Load Packets', self)
         self.load_button.setIcon(QtGui.QIcon('icons/load.png'))
+        self.load_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.load_button.clicked.connect(self.load_packets)
 
         self.packet_list = QtWidgets.QListWidget(self)
