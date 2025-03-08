@@ -65,7 +65,6 @@ class PacketSnifferApp(QtWidgets.QWidget):
                 padding: 10px 24px;
                 text-align: center;
                 text-decoration: none;
-                display: inline-block;
                 font-size: 14px;
                 margin: 4px 2px;
                 border-radius: 12px;
@@ -85,6 +84,10 @@ class PacketSnifferApp(QtWidgets.QWidget):
                 background-color: #1e1e1e;
                 border: 1px solid #ccc;
                 border-radius: 4px;
+                color: #ffffff;  # Ensure text color is white for better contrast
+            }
+            QListWidget::item {
+                color: #ffffff;  # Ensure text color is white for better contrast
             }
         """)
 
@@ -158,12 +161,26 @@ class PacketSnifferApp(QtWidgets.QWidget):
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
 
-    def sniff_packets(self):
-        def process_packet(packet):
-            self.packet_list.addItem(str(packet.summary()))
-            self.captured_packets.append(packet)
-            logging.info(packet.summary())
+    def process_packet(self, packet):
+        item = QtWidgets.QListWidgetItem(str(packet.summary()))
+        if packet.haslayer(scapy.ARP):
+            item.setBackground(QtGui.QColor('#FFD700'))  # Gold for ARP
+        elif packet.haslayer(scapy.IP):
+            if packet[scapy.IP].proto == 6:  # TCP
+                item.setBackground(QtGui.QColor('#ADD8E6'))  # Light Blue for TCP
+            elif packet[scapy.IP].proto == 17:  # UDP
+                item.setBackground(QtGui.QColor('#90EE90'))  # Light Green for UDP
+            else:
+                item.setBackground(QtGui.QColor('#FFFFFF'))  # White for other IP packets
+        else:
+            item.setBackground(QtGui.QColor('#D3D3D3'))  # Light Gray for other packets
 
+        item.setForeground(QtGui.QColor('#000000'))  # Ensure text color is black for better contrast
+        self.packet_list.addItem(item)
+        self.captured_packets.append(packet)
+        logging.info(packet.summary())
+
+    def sniff_packets(self):
         filter_str = ""
         if self.src_ip_input.text():
             filter_str += f"src host {self.src_ip_input.text()} "
@@ -172,7 +189,7 @@ class PacketSnifferApp(QtWidgets.QWidget):
                 filter_str += "and "
             filter_str += f"proto {self.protocol_input.text()}"
 
-        scapy.sniff(filter=filter_str, prn=process_packet, stop_filter=lambda x: not self.sniffing)
+        scapy.sniff(filter=filter_str, prn=self.process_packet, stop_filter=lambda x: not self.sniffing)
 
     def clear_packets(self):
         self.packet_list.clear()
