@@ -15,6 +15,7 @@ class PacketSnifferApp(QtWidgets.QWidget):
         self.sniffer_thread = None
         self.sniffing = False
         self.details_windows = []  # Store references to detail windows
+        self.captured_packets = []  # Store captured packets
 
     def check_npcap_installed(self):
         """Check if Npcap is installed and show a message if it's not."""
@@ -50,7 +51,6 @@ class PacketSnifferApp(QtWidgets.QWidget):
         self.setWindowTitle('Network Packet Analyzer')
         self.resize(800, 600)
         
-        # ... rest of your existing initUI code ...
 
         self.src_ip_label = QtWidgets.QLabel('Source IP Filter:')
         self.src_ip_input = QtWidgets.QLineEdit(self)
@@ -71,6 +71,12 @@ class PacketSnifferApp(QtWidgets.QWidget):
         self.scan_button = QtWidgets.QPushButton('Scan IPs', self)
         self.scan_button.clicked.connect(self.scan_ips)
 
+        self.save_button = QtWidgets.QPushButton('Save Packets', self)
+        self.save_button.clicked.connect(self.save_packets)
+
+        self.load_button = QtWidgets.QPushButton('Load Packets', self)
+        self.load_button.clicked.connect(self.load_packets)
+
         self.packet_list = QtWidgets.QListWidget(self)
         self.packet_list.itemClicked.connect(self.show_packet_details)
 
@@ -83,6 +89,8 @@ class PacketSnifferApp(QtWidgets.QWidget):
         layout.addWidget(self.stop_button)
         layout.addWidget(self.clear_button)
         layout.addWidget(self.scan_button)
+        layout.addWidget(self.save_button)
+        layout.addWidget(self.load_button)
         layout.addWidget(self.packet_list)
         self.setLayout(layout)
 
@@ -105,6 +113,7 @@ class PacketSnifferApp(QtWidgets.QWidget):
     def sniff_packets(self):
         def process_packet(packet):
             self.packet_list.addItem(str(packet.summary()))
+            self.captured_packets.append(packet)
             logging.info(packet.summary())
 
         filter_str = ""
@@ -119,10 +128,26 @@ class PacketSnifferApp(QtWidgets.QWidget):
 
     def clear_packets(self):
         self.packet_list.clear()
+        self.captured_packets.clear()
 
     def show_packet_details(self, item):
-        # Implement packet details display logic
-        pass
+        packet_summary = item.text()
+        packet_index = self.packet_list.row(item)
+        packet = self.captured_packets[packet_index]
+
+        details_window = QtWidgets.QWidget()
+        details_window.setWindowTitle('Packet Details')
+        details_window.resize(600, 400)
+
+        layout = QtWidgets.QVBoxLayout()
+        details_text = QtWidgets.QTextEdit()
+        details_text.setReadOnly(True)
+        details_text.setText(packet.show(dump=True))
+
+        layout.addWidget(details_text)
+        details_window.setLayout(layout)
+        details_window.show()
+        self.details_windows.append(details_window)
 
     def scan_ips(self):
         adapters = self.get_network_adapters()
@@ -151,7 +176,7 @@ class PacketSnifferApp(QtWidgets.QWidget):
         arp_request = scapy.ARP(pdst=ip_range)
         broadcast = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
         arp_request_broadcast = broadcast/arp_request
-        answered_list, unanswered_list = scapy.srp(arp_request_broadcast, timeout=5, verbose=True)
+        answered_list = scapy.srp(arp_request_broadcast, timeout=5, verbose=True)[0]  # Increased timeout and enabled verbose
         clients = []
         for element in answered_list:
             client_dict = {"ip": element[1].psrc, "mac": element[1].hwsrc}
@@ -176,6 +201,23 @@ class PacketSnifferApp(QtWidgets.QWidget):
     def add_ip_to_filter(self, item):
         ip = item.text().split(' - ')[0].replace('IP: ', '')
         self.src_ip_input.setText(ip)
+
+    def save_packets(self):
+        options = QtWidgets.QFileDialog.Options()
+        file_name, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save Packets", "", "PCAP Files (*.pcap);;All Files (*)", options=options)
+        if file_name:
+            scapy.wrpcap(file_name, self.captured_packets)
+            print(f"Packets saved to {file_name}")
+
+    def load_packets(self):
+        options = QtWidgets.QFileDialog.Options()
+        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Load Packets", "", "PCAP Files (*.pcap);;All Files (*)", options=options)
+        if file_name:
+            self.captured_packets = scapy.rdpcap(file_name)
+            self.packet_list.clear()
+            for packet in self.captured_packets:
+                self.packet_list.addItem(str(packet.summary()))
+            print(f"Packets loaded from {file_name}")
 
 if __name__ == "__main__":
     import sys
