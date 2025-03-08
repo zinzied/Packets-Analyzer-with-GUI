@@ -2,6 +2,7 @@ import scapy.all as scapy
 import logging
 from PyQt5 import QtWidgets, QtCore, QtGui
 import psutil
+import threading
 
 # Set up logging
 logging.basicConfig(filename='packet_log.txt', level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -12,6 +13,7 @@ class PacketSnifferApp(QtWidgets.QWidget):
         self.check_npcap_installed()
         self.initUI()
         self.sniffer_thread = None
+        self.sniffing = False
         self.details_windows = []  # Store references to detail windows
 
     def check_npcap_installed(self):
@@ -85,12 +87,35 @@ class PacketSnifferApp(QtWidgets.QWidget):
         self.setLayout(layout)
 
     def start_sniffing(self):
-        # Implement start sniffing logic
-        pass
+        if self.sniffing:
+            return
+
+        self.sniffing = True
+        self.start_button.setEnabled(False)
+        self.stop_button.setEnabled(True)
+
+        self.sniffer_thread = threading.Thread(target=self.sniff_packets)
+        self.sniffer_thread.start()
 
     def stop_sniffing(self):
-        # Implement stop sniffing logic
-        pass
+        self.sniffing = False
+        self.start_button.setEnabled(True)
+        self.stop_button.setEnabled(False)
+
+    def sniff_packets(self):
+        def process_packet(packet):
+            self.packet_list.addItem(str(packet.summary()))
+            logging.info(packet.summary())
+
+        filter_str = ""
+        if self.src_ip_input.text():
+            filter_str += f"src host {self.src_ip_input.text()} "
+        if self.protocol_input.text():
+            if filter_str:
+                filter_str += "and "
+            filter_str += f"proto {self.protocol_input.text()}"
+
+        scapy.sniff(filter=filter_str, prn=process_packet, stop_filter=lambda x: not self.sniffing)
 
     def clear_packets(self):
         self.packet_list.clear()
@@ -102,6 +127,9 @@ class PacketSnifferApp(QtWidgets.QWidget):
     def scan_ips(self):
         adapters = self.get_network_adapters()
         selected_adapter = self.select_network_adapter(adapters)
+        if not selected_adapter:
+            print("No network adapter selected.")
+            return
         ip_range, ok = QtWidgets.QInputDialog.getText(self, 'IP Range', 'Enter the IP range to scan (e.g., 192.168.1.1/24):')
         if ok:
             scan_results = self.scan_network(ip_range)
@@ -119,14 +147,16 @@ class PacketSnifferApp(QtWidgets.QWidget):
         return None
 
     def scan_network(self, ip_range):
+        print(f"Scanning IP range: {ip_range}")
         arp_request = scapy.ARP(pdst=ip_range)
         broadcast = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
         arp_request_broadcast = broadcast/arp_request
-        answered_list = scapy.srp(arp_request_broadcast, timeout=1, verbose=False)[0]
+        answered_list, unanswered_list = scapy.srp(arp_request_broadcast, timeout=5, verbose=True)
         clients = []
         for element in answered_list:
             client_dict = {"ip": element[1].psrc, "mac": element[1].hwsrc}
             clients.append(client_dict)
+        print(f"Scan results: {clients}")
         return clients
 
     def display_scan_results(self, clients):
@@ -137,10 +167,15 @@ class PacketSnifferApp(QtWidgets.QWidget):
         result_list = QtWidgets.QListWidget()
         for client in clients:
             result_list.addItem(f"IP: {client['ip']} - MAC: {client['mac']}")
+        result_list.itemClicked.connect(self.add_ip_to_filter)
         layout.addWidget(result_list)
         result_window.setLayout(layout)
         result_window.show()
         self.details_windows.append(result_window)
+
+    def add_ip_to_filter(self, item):
+        ip = item.text().split(' - ')[0].replace('IP: ', '')
+        self.src_ip_input.setText(ip)
 
 if __name__ == "__main__":
     import sys
