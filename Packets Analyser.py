@@ -53,44 +53,63 @@ class PacketSnifferApp(QtWidgets.QWidget):
         self.setWindowTitle('Network Packet Analyzer')
         self.resize(800, 600)
 
-        # Apply a style sheet for a modern look
+        # Apply a style sheet for a modern look with better text visibility
         self.setStyleSheet("""
             QWidget {
-                background-color: #2e2e2e;
-                color: #ffffff;
+                background-color: #2b2b2b;
+                color: #e0e0e0;
                 font-family: Arial;
                 font-size: 14px;
             }
             QMenuBar {
                 background-color: #1e1e1e;
-                color: #ffffff;
+                color: #e0e0e0;
+                border-bottom: 1px solid #404040;
             }
             QMenuBar::item:selected {
                 background-color: #4CAF50;
+                color: white;
             }
             QMenu {
                 background-color: #1e1e1e;
-                color: #ffffff;
+                color: #e0e0e0;
+                border: 1px solid #404040;
             }
             QMenu::item:selected {
                 background-color: #4CAF50;
+                color: white;
             }
             QLineEdit {
+                background-color: #3d3d3d;
+                color: #e0e0e0;
                 padding: 5px;
-                border: 1px solid #ccc;
+                border: 1px solid #505050;
                 border-radius: 4px;
             }
+            QLineEdit:focus {
+                border: 1px solid #4CAF50;
+            }
             QLabel {
+                color: #e0e0e0;
                 font-weight: bold;
             }
             QListWidget {
                 background-color: #1e1e1e;
-                border: 1px solid #ccc;
+                alternate-background-color: #2d2d2d;
+                border: 1px solid #404040;
                 border-radius: 4px;
-                color: #ffffff;
+                color: #e0e0e0;
             }
             QListWidget::item {
-                color: #ffffff;
+                padding: 5px;
+                border-bottom: 1px solid #333333;
+            }
+            QListWidget::item:selected {
+                background-color: #4CAF50;
+                color: white;
+            }
+            QListWidget::item:hover {
+                background-color: #383838;
             }
         """)
 
@@ -121,15 +140,15 @@ class PacketSnifferApp(QtWidgets.QWidget):
         # Capture menu
         capture_menu = menubar.addMenu('Capture')
         
-        self.start_action = QtWidgets.QAction('Start Sniffing', self)  # Changed to self.start_action
+        self.start_action = QtWidgets.QAction('Start Sniffing', self)
         self.start_action.setShortcut('F5')
         self.start_action.triggered.connect(self.start_sniffing)
         capture_menu.addAction(self.start_action)
 
-        self.stop_action = QtWidgets.QAction('Stop Sniffing', self)  # Changed to self.stop_action
+        self.stop_action = QtWidgets.QAction('Stop Sniffing', self)
         self.stop_action.setShortcut('F6')
         self.stop_action.triggered.connect(self.stop_sniffing)
-        self.stop_action.setEnabled(False)  # Disable stop action initially
+        self.stop_action.setEnabled(False)
         capture_menu.addAction(self.stop_action)
 
         clear_action = QtWidgets.QAction('Clear Packets', self)
@@ -192,20 +211,50 @@ class PacketSnifferApp(QtWidgets.QWidget):
         self.stop_action.setEnabled(False)   # Use stop_action instead of stop_button
 
     def process_packet(self, packet):
+        """Process and color-code packets based on their protocol."""
         item = QtWidgets.QListWidgetItem(str(packet.summary()))
-        if packet.haslayer(scapy.ARP):
-            item.setBackground(QtGui.QColor('#FFD700'))  # Gold for ARP
-        elif packet.haslayer(scapy.IP):
-            if packet[scapy.IP].proto == 6:  # TCP
-                item.setBackground(QtGui.QColor('#ADD8E6'))  # Light Blue for TCP
-            elif packet[scapy.IP].proto == 17:  # UDP
-                item.setBackground(QtGui.QColor('#90EE90'))  # Light Green for UDP
-            else:
-                item.setBackground(QtGui.QColor('#FFFFFF'))  # White for other IP packets
-        else:
-            item.setBackground(QtGui.QColor('#D3D3D3'))  # Light Gray for other packets
+        
+        # Define protocol colors with good contrast
+        COLORS = {
+            'TCP': '#ADD8E6',      # Light blue
+            'UDP': '#FFB6C1',      # Light pink
+            'ARP': '#90EE90',      # Light green
+            'ICMP': '#FFD700',     # Light orange
+            'DNS': '#E6E6FA',      # Light purple
+            'HTTP': '#FF6347',     # Light red
+            'HTTPS': '#B0E0E6',    # Light cyan
+            'OTHER': '#D3D3D3'     # Light gray
+        }
 
-        item.setForeground(QtGui.QColor('#000000'))  # Ensure text color is black for better contrast
+        # Set black text color for all packets
+        item.setForeground(QtGui.QColor('#000000'))
+
+        # Color-code based on protocol
+        if packet.haslayer(scapy.ARP):
+            item.setBackground(QtGui.QColor(COLORS['ARP']))
+        elif packet.haslayer(scapy.IP):
+            if packet.haslayer(scapy.TCP):
+                if packet.haslayer(scapy.Raw) and (b'HTTP' in bytes(packet[scapy.Raw])):
+                    item.setBackground(QtGui.QColor(COLORS['HTTP']))
+                elif packet[scapy.TCP].dport == 443 or packet[scapy.TCP].sport == 443:
+                    item.setBackground(QtGui.QColor(COLORS['HTTPS']))
+                else:
+                    item.setBackground(QtGui.QColor(COLORS['TCP']))
+            elif packet.haslayer(scapy.UDP):
+                if packet.haslayer(scapy.DNS):
+                    item.setBackground(QtGui.QColor(COLORS['DNS']))
+                else:
+                    item.setBackground(QtGui.QColor(COLORS['UDP']))
+            elif packet.haslayer(scapy.ICMP):
+                item.setBackground(QtGui.QColor(COLORS['ICMP']))
+            else:
+                item.setBackground(QtGui.QColor(COLORS['OTHER']))
+        else:
+            item.setBackground(QtGui.QColor(COLORS['OTHER']))
+
+        # Add tooltip with packet details
+        item.setToolTip(f"Protocol: {packet.summary()}\nLength: {len(packet)} bytes")
+
         self.packet_list.addItem(item)
         self.captured_packets.append(packet)
         logging.info(packet.summary())
