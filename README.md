@@ -7,6 +7,11 @@ This script is a Python-based network packet sniffer with a graphical user inter
 3. **Packet Logging**: Captured packet information is logged to a text file (`packet_log.txt`).
 4. **Packet Capture**: Captured packets are saved to a PCAP file (`captured_packets.pcap`).
 5. **Payload Display**: The application attempts to decode and display the payload of TCP and UDP packets.
+6. **Save and Load Packets**: Users can save captured packets to a file and load them later for analysis.
+7. **IP Scanning**: Scan a range of IP addresses to discover active devices on the network.
+8. **Packet Details View**: View detailed information about each captured packet.
+9. **Export Results**: Export scan results and packet details to CSV or JSON files.
+10. **Alerts and Notifications**: Set up alerts for specific network events.
 
 ### Usage Instructions:
 1. **Clone the Repository**:
@@ -20,11 +25,11 @@ This script is a Python-based network packet sniffer with a graphical user inter
 3. **Install the Required Dependencies**:
    ```sh
    pip install scapy PyQt5
-   Need To install Npcap for windows from here: https://npcap.com/dist/npcap-1.79.exe
    ```
+   Additionally, you need to install Npcap for Windows from here: [Npcap Download](https://npcap.com/dist/npcap-1.79.exe)
 4. **Run the Packet Sniffer Script**:
    ```sh
-   sudo python Packets Analyser.py
+   sudo python Packets\ Analyser.py
    ```
 
 ### GUI Components:
@@ -33,14 +38,20 @@ This script is a Python-based network packet sniffer with a graphical user inter
 - **Start Sniffing Button**: Starts the packet sniffing process.
 - **Stop Sniffing Button**: Stops the packet sniffing process.
 - **Clear Packets Button**: Clears the list of captured packets.
+- **Scan IPs Button**: Scans a range of IP addresses to discover active devices.
+- **Save Packets Button**: Saves the captured packets to a PCAP file.
+- **Load Packets Button**: Loads packets from a PCAP file.
 - **Packet List**: Displays a list of captured packets. Clicking on a packet shows its details in a new window.
 
 ### How It Works:
 1. **Initialization**: The `PacketSnifferApp` class initializes the GUI and sets up the necessary components.
-2. **Start Sniffing**: When the "Start Sniffing" button is clicked, a new `SnifferThread` is created and started. This thread captures packets using Scapy's `sniff` function.
-3. **Packet Callback**: The `packet_callback` method processes each captured packet, applying the specified filters and displaying relevant information in the GUI.
+2. **Start Sniffing**: When the "Start Sniffing" button is clicked, a new thread is created and started. This thread captures packets using Scapy's `sniff` function.
+3. **Packet Callback**: The `process_packet` method processes each captured packet, applying the specified filters and displaying relevant information in the GUI.
 4. **Stop Sniffing**: When the "Stop Sniffing" button is clicked, the sniffer thread is stopped.
 5. **Clear Packets**: The "Clear Packets" button clears the list of captured packets.
 6. **Show Packet Details**: Clicking on a packet in the list opens a new window displaying detailed information about the packet.
+7. **Scan IPs**: The "Scan IPs" button allows users to scan a range of IP addresses to discover active devices on the network.
+8. **Save Packets**: The "Save Packets" button saves the captured packets to a PCAP file.
+9. **Load Packets**: The "Load Packets" button loads packets from a PCAP file.
 
 This script provides a comprehensive tool for network packet analysis with a focus on ease of use and real-time data display.
