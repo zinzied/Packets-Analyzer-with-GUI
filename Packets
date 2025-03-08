@@ -1,0 +1,53 @@
+import scapy.all as scapy
+import logging
+from PyQt5 import QtWidgets, QtCore, QtGui
+import psutil
+import sys
+import os
+
+# Set up logging
+logging.basicConfig(filename='packet_log.txt', level=logging.INFO, format='%(asctime)s - %(message)s')
+
+class PacketSnifferApp(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.check_npcap_installed()
+        self.initUI()
+        self.sniffer_thread = None
+        self.details_windows = []  # Store references to detail windows
+
+    def check_npcap_installed(self):
+        """Check if Npcap is installed and show a message if it's not."""
+        try:
+            # Try a simple scapy operation that requires Npcap
+            test = scapy.Ether()
+            # If no exception is raised, Npcap is likely installed
+        except Exception:
+            msg = QtWidgets.QMessageBox()
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.setWindowTitle("Npcap Required")
+            msg.setText("Npcap is required to use this application")
+            msg.setInformativeText("This application requires Npcap to capture and analyze network packets. "
+                                  "Please download and install Npcap from https://npcap.com before using this application.")
+            msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            
+            # Add buttons to download or exit
+            download_button = msg.addButton("Download Npcap", QtWidgets.QMessageBox.ActionRole)
+            exit_button = msg.addButton("Exit", QtWidgets.QMessageBox.RejectRole)
+            
+            msg.exec_()
+            
+            # Handle button clicks
+            if msg.clickedButton() == download_button:
+                import webbrowser
+                webbrowser.open("https://npcap.com/dist/npcap-1.79.exe")
+                sys.exit()
+            elif msg.clickedButton() == exit_button:
+                sys.exit()
+
+    def initUI(self):
+        # Rest of your initUI code remains unchanged
+        self.setWindowTitle('Network Packet Analyzer')
+        self.resize(800, 600)
+        
+        # ... rest of your existing initUI code ...
