@@ -3,6 +3,8 @@ import logging
 from PyQt5 import QtWidgets, QtCore, QtGui
 import psutil
 import threading
+import json
+import csv
 
 # Set up logging
 logging.basicConfig(filename='packet_log.txt', level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -16,6 +18,7 @@ class PacketSnifferApp(QtWidgets.QWidget):
         self.sniffing = False
         self.details_windows = []  # Store references to detail windows
         self.captured_packets = []  # Store captured packets
+        self.packet_comments = {}  # Store packet comments
 
     def check_npcap_installed(self):
         """Check if Npcap is installed and show a message if it's not."""
@@ -58,19 +61,19 @@ class PacketSnifferApp(QtWidgets.QWidget):
                 font-family: Arial;
                 font-size: 14px;
             }
-            QPushButton {
-                background-color: #4CAF50;
-                border: none;
-                color: white;
-                padding: 10px 24px;
-                text-align: center;
-                text-decoration: none;
-                font-size: 14px;
-                margin: 4px 2px;
-                border-radius: 12px;
+            QMenuBar {
+                background-color: #1e1e1e;
+                color: #ffffff;
             }
-            QPushButton:hover {
-                background-color: #45a049;
+            QMenuBar::item:selected {
+                background-color: #4CAF50;
+            }
+            QMenu {
+                background-color: #1e1e1e;
+                color: #ffffff;
+            }
+            QMenu::item:selected {
+                background-color: #4CAF50;
             }
             QLineEdit {
                 padding: 5px;
@@ -84,82 +87,109 @@ class PacketSnifferApp(QtWidgets.QWidget):
                 background-color: #1e1e1e;
                 border: 1px solid #ccc;
                 border-radius: 4px;
-                color: #ffffff;  # Ensure text color is white for better contrast
+                color: #ffffff;
             }
             QListWidget::item {
-                color: #ffffff;  # Ensure text color is white for better contrast
+                color: #ffffff;
             }
         """)
 
+        # Create main layout
+        main_layout = QtWidgets.QVBoxLayout()
+
+        # Create menu bar
+        menubar = QtWidgets.QMenuBar(self)
+
+        # File menu
+        file_menu = menubar.addMenu('File')
+        
+        save_action = QtWidgets.QAction('Save Packets', self)
+        save_action.setShortcut('Ctrl+S')
+        save_action.triggered.connect(self.save_packets)
+        file_menu.addAction(save_action)
+
+        load_action = QtWidgets.QAction('Load Packets', self)
+        load_action.setShortcut('Ctrl+O')
+        load_action.triggered.connect(self.load_packets)
+        file_menu.addAction(load_action)
+
+        export_action = QtWidgets.QAction('Export Packets', self)
+        export_action.setShortcut('Ctrl+E')
+        export_action.triggered.connect(self.export_packets)
+        file_menu.addAction(export_action)
+
+        # Capture menu
+        capture_menu = menubar.addMenu('Capture')
+        
+        self.start_action = QtWidgets.QAction('Start Sniffing', self)  # Changed to self.start_action
+        self.start_action.setShortcut('F5')
+        self.start_action.triggered.connect(self.start_sniffing)
+        capture_menu.addAction(self.start_action)
+
+        self.stop_action = QtWidgets.QAction('Stop Sniffing', self)  # Changed to self.stop_action
+        self.stop_action.setShortcut('F6')
+        self.stop_action.triggered.connect(self.stop_sniffing)
+        self.stop_action.setEnabled(False)  # Disable stop action initially
+        capture_menu.addAction(self.stop_action)
+
+        clear_action = QtWidgets.QAction('Clear Packets', self)
+        clear_action.triggered.connect(self.clear_packets)
+        capture_menu.addAction(clear_action)
+
+        # Tools menu
+        tools_menu = menubar.addMenu('Tools')
+        
+        scan_action = QtWidgets.QAction('Scan IPs', self)
+        scan_action.triggered.connect(self.scan_ips)
+        tools_menu.addAction(scan_action)
+
+        stats_action = QtWidgets.QAction('Protocol Statistics', self)
+        stats_action.triggered.connect(self.show_protocol_statistics)
+        tools_menu.addAction(stats_action)
+
+        follow_action = QtWidgets.QAction('Follow Stream', self)
+        follow_action.triggered.connect(self.follow_stream)
+        tools_menu.addAction(follow_action)
+
+        # Create filter section
+        filter_layout = QtWidgets.QHBoxLayout()
+        
         self.src_ip_label = QtWidgets.QLabel('Source IP Filter:')
         self.src_ip_input = QtWidgets.QLineEdit(self)
-
-        self.protocol_label = QtWidgets.QLabel('Protocol Filter (6 for TCP, 17 for UDP):')
+        self.protocol_label = QtWidgets.QLabel('Protocol Filter:')
         self.protocol_input = QtWidgets.QLineEdit(self)
+        
+        filter_layout.addWidget(self.src_ip_label)
+        filter_layout.addWidget(self.src_ip_input)
+        filter_layout.addWidget(self.protocol_label)
+        filter_layout.addWidget(self.protocol_input)
 
-        self.start_button = QtWidgets.QPushButton('Start Sniffing', self)
-        self.start_button.setIcon(QtGui.QIcon('icons/start.png'))
-        self.start_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.start_button.clicked.connect(self.start_sniffing)
-
-        self.stop_button = QtWidgets.QPushButton('Stop Sniffing', self)
-        self.stop_button.setIcon(QtGui.QIcon('icons/stop.png'))
-        self.stop_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.stop_button.clicked.connect(self.stop_sniffing)
-        self.stop_button.setEnabled(False)
-
-        self.clear_button = QtWidgets.QPushButton('Clear Packets', self)
-        self.clear_button.setIcon(QtGui.QIcon('icons/clear.png'))
-        self.clear_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.clear_button.clicked.connect(self.clear_packets)
-
-        self.scan_button = QtWidgets.QPushButton('Scan IPs', self)
-        self.scan_button.setIcon(QtGui.QIcon('icons/scan.png'))
-        self.scan_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.scan_button.clicked.connect(self.scan_ips)
-
-        self.save_button = QtWidgets.QPushButton('Save Packets', self)
-        self.save_button.setIcon(QtGui.QIcon('icons/save.png'))
-        self.save_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.save_button.clicked.connect(self.save_packets)
-
-        self.load_button = QtWidgets.QPushButton('Load Packets', self)
-        self.load_button.setIcon(QtGui.QIcon('icons/load.png'))
-        self.load_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.load_button.clicked.connect(self.load_packets)
-
+        # Create packet list
         self.packet_list = QtWidgets.QListWidget(self)
         self.packet_list.itemClicked.connect(self.show_packet_details)
 
-        layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(self.src_ip_label)
-        layout.addWidget(self.src_ip_input)
-        layout.addWidget(self.protocol_label)
-        layout.addWidget(self.protocol_input)
-        layout.addWidget(self.start_button)
-        layout.addWidget(self.stop_button)
-        layout.addWidget(self.clear_button)
-        layout.addWidget(self.scan_button)
-        layout.addWidget(self.save_button)
-        layout.addWidget(self.load_button)
-        layout.addWidget(self.packet_list)
-        self.setLayout(layout)
+        # Add widgets to main layout
+        main_layout.setMenuBar(menubar)
+        main_layout.addLayout(filter_layout)
+        main_layout.addWidget(self.packet_list)
+        
+        self.setLayout(main_layout)
 
     def start_sniffing(self):
         if self.sniffing:
             return
 
         self.sniffing = True
-        self.start_button.setEnabled(False)
-        self.stop_button.setEnabled(True)
+        self.start_action.setEnabled(False)  # Use start_action instead of start_button
+        self.stop_action.setEnabled(True)   # Use stop_action instead of stop_button
 
         self.sniffer_thread = threading.Thread(target=self.sniff_packets)
         self.sniffer_thread.start()
 
     def stop_sniffing(self):
         self.sniffing = False
-        self.start_button.setEnabled(True)
-        self.stop_button.setEnabled(False)
+        self.start_action.setEnabled(True)   # Use start_action instead of start_button
+        self.stop_action.setEnabled(False)   # Use stop_action instead of stop_button
 
     def process_packet(self, packet):
         item = QtWidgets.QListWidgetItem(str(packet.summary()))
@@ -283,6 +313,145 @@ class PacketSnifferApp(QtWidgets.QWidget):
             for packet in self.captured_packets:
                 self.packet_list.addItem(str(packet.summary()))
             print(f"Packets loaded from {file_name}")
+
+    def show_protocol_statistics(self):
+        protocol_counts = {}
+        for packet in self.captured_packets:
+            if packet.haslayer(scapy.IP):
+                proto = packet[scapy.IP].proto
+                if proto == 6:
+                    protocol = 'TCP'
+                elif proto == 17:
+                    protocol = 'UDP'
+                else:
+                    protocol = f'IP Protocol {proto}'
+            elif packet.haslayer(scapy.ARP):
+                protocol = 'ARP'
+            else:
+                protocol = 'Other'
+
+            if protocol in protocol_counts:
+                protocol_counts[protocol] += 1
+            else:
+                protocol_counts[protocol] = 1
+
+        stats_window = QtWidgets.QWidget()
+        stats_window.setWindowTitle('Protocol Statistics')
+        stats_window.resize(400, 300)
+
+        layout = QtWidgets.QVBoxLayout()
+        stats_list = QtWidgets.QListWidget()
+        for protocol, count in protocol_counts.items():
+            stats_list.addItem(f"{protocol}: {count} packets")
+
+        layout.addWidget(stats_list)
+        stats_window.setLayout(layout)
+        stats_window.show()
+        self.details_windows.append(stats_window)
+
+    def follow_stream(self):
+        selected_item = self.packet_list.currentItem()
+        if not selected_item:
+            QtWidgets.QMessageBox.warning(self, "No Packet Selected", "Please select a packet to follow its stream.")
+            return
+
+        packet_index = self.packet_list.row(selected_item)
+        packet = self.captured_packets[packet_index]
+
+        if not packet.haslayer(scapy.IP) or not (packet.haslayer(scapy.TCP) or packet.haslayer(scapy.UDP)):
+            QtWidgets.QMessageBox.warning(self, "Invalid Packet", "Selected packet is not a TCP or UDP packet.")
+            return
+
+        stream_packets = []
+        if packet.haslayer(scapy.TCP):
+            stream_filter = f"tcp and host {packet[scapy.IP].src} and host {packet[scapy.IP].dst} and port {packet[scapy.TCP].sport} and port {packet[scapy.TCP].dport}"
+        elif packet.haslayer(scapy.UDP):
+            stream_filter = f"udp and host {packet[scapy.IP].src} and host {packet[scapy.IP].dst} and port {packet[scapy.UDP].sport} and port {packet[scapy.UDP].dport}"
+
+        for pkt in self.captured_packets:
+            if pkt.haslayer(scapy.IP) and pkt.haslayer(scapy.TCP) and scapy.IP in pkt and scapy.TCP in pkt:
+                if (pkt[scapy.IP].src == packet[scapy.IP].src and pkt[scapy.IP].dst == packet[scapy.IP].dst and
+                    pkt[scapy.TCP].sport == packet[scapy.TCP].sport and pkt[scapy.TCP].dport == packet[scapy.TCP].dport) or \
+                   (pkt[scapy.IP].src == packet[scapy.IP].dst and pkt[scapy.IP].dst == packet[scapy.IP].src and
+                    pkt[scapy.TCP].sport == packet[scapy.TCP].dport and pkt[scapy.TCP].dport == packet[scapy.TCP].sport):
+                    stream_packets.append(pkt)
+            elif pkt.haslayer(scapy.IP) and pkt.haslayer(scapy.UDP) and scapy.IP in pkt and scapy.UDP in pkt:
+                if (pkt[scapy.IP].src == packet[scapy.IP].src and pkt[scapy.IP].dst == packet[scapy.IP].dst and
+                    pkt[scapy.UDP].sport == packet[scapy.UDP].sport and pkt[scapy.UDP].dport == packet[scapy.UDP].dport) or \
+                   (pkt[scapy.IP].src == packet[scapy.IP].dst and pkt[scapy.IP].dst == packet[scapy.IP].src and
+                    pkt[scapy.UDP].sport == packet[scapy.UDP].dport and pkt[scapy.UDP].dport == packet[scapy.UDP].sport):
+                    stream_packets.append(pkt)
+
+        stream_window = QtWidgets.QWidget()
+        stream_window.setWindowTitle('Follow Stream')
+        stream_window.resize(600, 400)
+
+        layout = QtWidgets.QVBoxLayout()
+        stream_text = QtWidgets.QTextEdit()
+        stream_text.setReadOnly(True)
+        stream_content = "\n\n".join([pkt.show(dump=True) for pkt in stream_packets])
+        stream_text.setText(stream_content)
+
+        layout.addWidget(stream_text)
+        stream_window.setLayout(layout)
+        stream_window.show()
+        self.details_windows.append(stream_window)
+
+    def export_packets(self):
+        options = QtWidgets.QFileDialog.Options()
+        file_name, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Export Packets", "", "CSV Files (*.csv);;JSON Files (*.json);;All Files (*)", options=options)
+        if file_name:
+            if file_name.endswith('.csv'):
+                self.export_packets_to_csv(file_name)
+            elif file_name.endswith('.json'):
+                self.export_packets_to_json(file_name)
+
+    def export_packets_to_csv(self, file_name):
+        with open(file_name, 'w', newline='') as csvfile:
+            fieldnames = ['No.', 'Time', 'Source', 'Destination', 'Protocol', 'Length', 'Info']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+            writer.writeheader()
+            for i, packet in enumerate(self.captured_packets):
+                if packet.haslayer(scapy.IP):
+                    src = packet[scapy.IP].src
+                    dst = packet[scapy.IP].dst
+                    proto = packet[scapy.IP].proto
+                    length = len(packet)
+                    info = packet.summary()
+                    if proto == 6:
+                        protocol = 'TCP'
+                    elif proto == 17:
+                        protocol = 'UDP'
+                    else:
+                        protocol = f'IP Protocol {proto}'
+                elif packet.haslayer(scapy.ARP):
+                    src = packet[scapy.ARP].psrc
+                    dst = packet[scapy.ARP].pdst
+                    protocol = 'ARP'
+                    length = len(packet)
+                    info = packet.summary()
+                else:
+                    src = 'Unknown'
+                    dst = 'Unknown'
+                    protocol = 'Other'
+                    length = len(packet)
+                    info = packet.summary()
+
+                writer.writerow({'No.': i + 1, 'Time': packet.time, 'Source': src, 'Destination': dst, 'Protocol': protocol, 'Length': length, 'Info': info})
+
+    def export_packets_to_json(self, file_name):
+        packets_data = []
+        for packet in self.captured_packets:
+            packet_data = {
+                'time': packet.time,
+                'summary': packet.summary(),
+                'show': packet.show(dump=True)
+            }
+            packets_data.append(packet_data)
+
+        with open(file_name, 'w') as jsonfile:
+            json.dump(packets_data, jsonfile, indent=4)
 
 if __name__ == "__main__":
     import sys
