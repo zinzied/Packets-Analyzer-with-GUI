@@ -47,10 +47,47 @@ class PacketSnifferApp(QtWidgets.QWidget):
                 sys.exit()
 
     def initUI(self):
-        # Rest of your initUI code remains unchanged
         self.setWindowTitle('Network Packet Analyzer')
         self.resize(800, 600)
-        
+
+        # Apply a style sheet for a modern look
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #2e2e2e;
+                color: #ffffff;
+                font-family: Arial;
+                font-size: 14px;
+            }
+            QPushButton {
+                background-color: #4CAF50;
+                border: none;
+                color: white;
+                padding: 10px 24px;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                font-size: 14px;
+                margin: 4px 2px;
+                cursor: pointer;
+                border-radius: 12px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+            QLineEdit {
+                padding: 5px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+            }
+            QLabel {
+                font-weight: bold;
+            }
+            QListWidget {
+                background-color: #1e1e1e;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+            }
+        """)
 
         self.src_ip_label = QtWidgets.QLabel('Source IP Filter:')
         self.src_ip_input = QtWidgets.QLineEdit(self)
@@ -59,22 +96,28 @@ class PacketSnifferApp(QtWidgets.QWidget):
         self.protocol_input = QtWidgets.QLineEdit(self)
 
         self.start_button = QtWidgets.QPushButton('Start Sniffing', self)
+        self.start_button.setIcon(QtGui.QIcon('icons/start.png'))
         self.start_button.clicked.connect(self.start_sniffing)
 
         self.stop_button = QtWidgets.QPushButton('Stop Sniffing', self)
+        self.stop_button.setIcon(QtGui.QIcon('icons/stop.png'))
         self.stop_button.clicked.connect(self.stop_sniffing)
         self.stop_button.setEnabled(False)
 
         self.clear_button = QtWidgets.QPushButton('Clear Packets', self)
+        self.clear_button.setIcon(QtGui.QIcon('icons/clear.png'))
         self.clear_button.clicked.connect(self.clear_packets)
 
         self.scan_button = QtWidgets.QPushButton('Scan IPs', self)
+        self.scan_button.setIcon(QtGui.QIcon('icons/scan.png'))
         self.scan_button.clicked.connect(self.scan_ips)
 
         self.save_button = QtWidgets.QPushButton('Save Packets', self)
+        self.save_button.setIcon(QtGui.QIcon('icons/save.png'))
         self.save_button.clicked.connect(self.save_packets)
 
         self.load_button = QtWidgets.QPushButton('Load Packets', self)
+        self.load_button.setIcon(QtGui.QIcon('icons/load.png'))
         self.load_button.clicked.connect(self.load_packets)
 
         self.packet_list = QtWidgets.QListWidget(self)
