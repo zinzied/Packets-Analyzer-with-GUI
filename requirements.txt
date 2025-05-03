@@ -1,0 +1,4 @@
+scapy>=2.4.5
+PyQt5>=5.15.4
+matplotlib>=3.5.1
+psutil>=5.9.0
